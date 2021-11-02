@@ -1,0 +1,178 @@
+breed [ nurses nurse ]
+breed [ patients patient ]
+turtles-own [ neighbours s dist x y infected-time quarantine-time hospital-time ICU-time house prob ]
+globals[ mu1 mu2 std1 std2 z1 z2 j k h-count1]
+to setup
+  clear-all
+  ask patches [ set pcolor black ]
+  nusrsinghome
+  set h-count1 0
+;   create-nurses initial-number-nurses  ; create the adults, then initialize their variables
+ ; [
+  ;  set shape  "person"
+   ; set color pink
+   ; set size 1.5  ; easier to see
+    ;set label-color red + 2
+    ;move-to one-of patches with [pcolor = violet]
+;    setxy random-xcor random-ycor
+   ;set house patch-here
+    ;set prob 0.1 + random-float 0.9
+   ;set hospital-time 0
+   ;set infected-time 0
+   ;set quarantine-time 0
+   ;set ICU-time 0  ]
+
+
+  create-patients initial-number-patients  ; create the elders, then initialize their variables
+  [
+    set shape  "person"
+    set color white
+    set size 1.5  ; easier to see
+    set label-color yellow + 2
+    move-to one-of patches with [pcolor = violet]
+    ;setxy random-xcor random-ycor
+    set house patch-here
+    set prob 0.1 + random-float 0.9
+   set hospital-time 0
+   set infected-time 0
+    set quarantine-time 0
+    set ICU-time 0 ]
+  reset-ticks
+end
+
+to go
+  if ticks = 480 [ stop ]
+  ask turtles[ infect
+  asymptomatic
+  quarantine
+  ICU
+  hospitalize
+  waitlist]
+  ;ask nurses
+  ;[
+  ;if (color != yellow) and (color != magenta) and (color != lime) and (color != sky)
+  ;[
+  ;    move-nurse]
+  ;if color = magenta [ move-to house]
+  ;if color = sky [move-to house]]
+  ask patients
+  [
+  if (color != yellow) and (color != magenta) and (color != lime) and (color != sky)
+  [
+    move-patients
+  ]
+  if (color = magenta) [ move-to house]
+  if (color = sky) [ move-to house]]
+  count-neighbours-and-total-distance
+  if ticks = 479 [
+    set mu1 mean [ neighbours ] of turtles
+    set std1 standard-deviation [ neighbours ] of turtles
+    set z1 mu1 - std1
+    set mu2 mean [ dist ] of turtles
+    set std2 standard-deviation [ dist ] of turtles
+    set z2 mu2 + std2
+    write "Isolated Nodes:1"
+    ask turtles
+     [
+      if neighbours < z1 [ show who
+       set k k + 1 ]
+     ]
+     write "Isolated Nodes: 2"
+     ask turtles [
+     if dist > z2 [ show who
+     set j j + 1 ]
+     ]
+     write " ISN "
+     show k
+     write " ISD "
+     show j
+     write " Total"
+     show j + k
+     ]
+     tick
+end
+
+to nusrsinghome
+    ask patches with [pxcor < 25 and pycor > -25]
+    [set pcolor violet
+  ]
+end
+;to move-nurse
+ ; ifelse remainder ticks 8 = 5 [  if random-float 1 <= 0.10
+  ;    [
+   ;   move-to one-of patches with [pcolor = black]
+    ;]]
+ ; [     move-to one-of patches with [pcolor = violet]]
+;end
+
+to move-patients
+  ifelse remainder ticks 8 = 5 [  if random-float 1 <= 0.05
+      [
+      move-to one-of patches with [pcolor = black]
+    ]]
+  [     move-to one-of patches with [pcolor = violet]]
+end
+to asymptomatic
+    if color = brown [ if infected-time > 40 [ set color yellow
+    ]]
+
+    if color = brown [ set infected-time infected-time + 1 ]
+end
+to infect
+  if (pcolor = black)
+  [if random-float 1 <= 0.5[set color brown]]
+  if (color = brown)
+      [  ask other turtles [if distance myself <= 2[ if (color = pink) or (color = white) [if random-float 1 <= 0.8 [set color brown ]]]]]
+end
+
+to quarantine
+  if color = yellow [if (quarantine-time > 0) and (quarantine-time) <= 40 [ifelse pcolor = violet[ ;;do nothing
+][move-to one-of patches with [pcolor = violet]]  ]]
+  if color = yellow [ if quarantine-time = 41 [ ifelse random-float 1 <= 0.12[ifelse random-float 1 <= 0.025[set color sky] [set color magenta]] [ ]]]
+  if color = yellow [ if quarantine-time = 49 [ ifelse random-float 1 <= 0.12[ifelse random-float 1 <= 0.025[set color sky] [set color magenta]] [ ]]]
+    if color = yellow [ if quarantine-time = 57 [ ifelse random-float 1 <= 0.12[ifelse random-float 1 <= 0.025[set color sky] [set color magenta]] [ ]]]
+   if color = yellow [ if quarantine-time = 65 [ ifelse random-float 1 <= 0.12[ifelse random-float 1 <= 0.025[set color sky] [set color magenta]] [set color turquoise ]]]
+  if color = yellow [ if any? other turtles-here [ask other turtles with [color != yellow] [ move-to one-of patches with [pcolor = violet]]]]
+  if color = yellow [set quarantine-time quarantine-time + 1 ]
+end
+
+to hospitalize
+  ifelse (color = magenta and hospital-time = 0) [
+
+    ifelse (h-count1 < 30)[
+      set h-count1 h-count1 + 1][set color lime]][]
+  if (color = magenta)[ if (hospital-time + quarantine-time) > 112 [  set h-count1 h-count1 - 1]]
+  if (color = magenta) [ set hospital-time hospital-time + 1
+    ifelse random-float 1 <= 0.046 [ die] [ set color turquoise]]
+end
+to waitlist
+    if color = lime [ ifelse patch-here = house [;;do nothing
+  ][move-to one-of patches with [pcolor = violet]]]
+    if color = lime [ if any? other turtles-here with [color != lime and color != yellow] [ask other turtles[ move-to one-of patches with [pcolor = violet]]]]
+    if color = lime [ ifelse h-count1 < 30
+
+    [ set color magenta][if random-float 1 <= 0.30[die]]]
+end
+
+to ICU
+  if (color = sky) and (ICU-time = 0) [
+
+    ifelse (h-count1 < 30)[
+      set h-count1 h-count1 + 1
+       ][set color lime]]
+  if (color = sky)[ if (ICU-time + quarantine-time) > 168 [
+    set h-count1 h-count1 - 1]
+    ifelse random-float 1 <= 0.60 [ die] [ set color turquoise]]
+end
+
+to count-neighbours-and-total-distance
+  ask turtles
+  [
+    ifelse (color != magenta) and (color != lime) and (color != sky) [
+	ask other turtles
+	[ if distance myself <= 20 [ if random-float 1 >= prob [ set neighbours neighbours + 1
+        set s s + distance myself]]]][set neighbours neighbours
+set s s + 30]
+      if neighbours = 0 [ set dist dist ]
+      if neighbours != 0 [ set dist dist + s / neighbours ]]
+end
